@@ -9,8 +9,8 @@ const GITHUB_SPONSOR_URL = 'https://github.com/sponsors/francozanardi';
 const BUY_ME_A_COFFEE_URL = 'https://www.buymeacoffee.com/francozanardi';
 const TRUSTPILOT_URL = 'https://www.trustpilot.com/review/tscaps.io';
 const FEEDBACK_EMAIL = 'franco@tscaps.io';
-const SHARE_URL = 'https://tscaps.io';
-const SHARE_TITLE = 'tscaps';
+const SHARE_URL = 'https://captions.thitlann.me';
+const SHARE_TITLE = 'ThitCaps';
 const SHARE_TEXT = 'Animated subtitles in your browser. Open source.';
 
 const SHARE_FEEDBACK_MS = 2400;
@@ -36,8 +36,8 @@ export function SupportDialog({ open, onClose }: SupportDialogProps) {
       open={open}
       onClose={onClose}
       size="lg"
-      title="Support tscaps"
-      description="Hey, I'm Franco. I build tscaps on my own. Here are some ways you can help."
+      title="About ThitCaps"
+      description="ThitCaps is an independent customized fork of the open-source Tscaps editor by Franco Zanardi. The links below support the original developer."
       showCloseButton
     >
       <div className="flex flex-col gap-6">
@@ -54,8 +54,7 @@ function FreeSection() {
     <section className="flex flex-col gap-3">
       <h3 className={SECTION_TITLE}>Free</h3>
       <p className={SECTION_NOTE}>
-        Any of these helps more people find tscaps. That gets me closer to making a living
-        from it.
+        These links support the original Tscaps project and its developer.
       </p>
       <div className="flex flex-col gap-2">
         <ShareRow />
@@ -82,7 +81,7 @@ function PaidSection() {
     <section className="flex flex-col gap-3">
       <h3 className={SECTION_TITLE}>Paid</h3>
       <p className={SECTION_NOTE}>
-        Any of these pays for the time I spend on tscaps.
+        Donations through these links go to the original Tscaps developer, not ThitCaps.
       </p>
       <div className="flex flex-col gap-2">
         <ExternalRow
@@ -177,7 +176,7 @@ function ShareRow() {
     <button type="button" className={ROW} onClick={handleShare}>
       <RowLayout
         icon={<Share2 size={18} strokeWidth={1.75} />}
-        title="Share tscaps"
+        title="Share ThitCaps"
         subtitle={subtitle}
       />
     </button>
@@ -195,7 +194,7 @@ function EmailCopyRow() {
     });
   };
 
-  const subtitle = feedback ?? 'Bugs, ideas, or a hello. I reply to all.';
+  const subtitle = feedback ?? 'Feedback for the original Tscaps developer.';
 
   return (
     <button type="button" className={ROW} onClick={handleCopy}>
