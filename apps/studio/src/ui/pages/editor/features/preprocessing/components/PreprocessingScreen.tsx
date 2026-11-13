@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { PreprocessingProgressStatus } from '@core/preprocessing/domain/PreprocessingProgressStatus';
 import type { PreprocessingProgressStore } from '@core/preprocessing/store/PreprocessingProgressStore';
 import { Wordmark } from '@ui/_shared/components/Wordmark/Wordmark';
+import { readGroqPreferences } from '@core/transcription/infrastructure/GroqPreferences';
 
 export interface Copy {
   readonly primary: string;
@@ -36,7 +37,9 @@ const defaultSelectCopy: CopyResolver = (status) => {
     };
   }
   return {
-    primary: 'Transcribing your video in this browser.',
+    primary: readGroqPreferences().provider === 'groq'
+      ? 'Transcribing your video using Groq.'
+      : 'Transcribing your video in this browser.',
     helper: 'Keep this tab open until it finishes.',
   };
 };
