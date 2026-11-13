@@ -18,14 +18,7 @@ export class SwitchableTranscriber implements ConfigurableTranscriber {
     return this.active().initialPhase;
   }
 
-  set onUntranscribedRegion(value: ((region: UntranscribedRegion) => void) | undefined) {
-    this.local.onUntranscribedRegion = value;
-    this.groq.onUntranscribedRegion = value;
-  }
-
-  get onUntranscribedRegion(): ((region: UntranscribedRegion) => void) | undefined {
-    return this.active().onUntranscribedRegion;
-  }
+  onUntranscribedRegion?: (region: UntranscribedRegion) => void;
 
   setConfig(config: unknown): void {
     this.local.setConfig(config);
@@ -33,6 +26,10 @@ export class SwitchableTranscriber implements ConfigurableTranscriber {
   }
 
   transcribe(audio: Blob, options?: TranscriberOptions): Promise<Document> {
-    return this.active().transcribe(audio, options);
+    const target = this.active();
+    if (this.onUntranscribedRegion) {
+      target.onUntranscribedRegion = this.onUntranscribedRegion;
+    }
+    return target.transcribe(audio, options);
   }
 }
