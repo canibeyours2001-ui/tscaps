@@ -23,7 +23,7 @@ const BASE =
 
 /**
  * The single brand mark for the app. Reads as two words and a dot:
- * `ts` in the default foreground (the quiet prefix), `caps` in the
+ * `thit` in the default foreground (the quiet prefix), `caps` in the
  * accent (the noun the product is named after), and the accent dot —
  * the "punto final" of a caption. Render as a link by passing `href`;
  * pass `working` to make the dot blink as the universal "the app is
@@ -49,7 +49,7 @@ export function Wordmark({ href, onClick, size = 'md', working = false, classNam
 
   const content = (
     <>
-      <span className="text-fg-primary">ts</span>
+      <span className="text-fg-primary">thit</span>
       <span className={capsClass}>caps</span>
       <span className={dotClass} aria-hidden="true">.</span>
     </>
@@ -61,7 +61,7 @@ export function Wordmark({ href, onClick, size = 'md', working = false, classNam
         href={href}
         onClick={onClick}
         className={`${BASE} group ${sizeClass} focus-visible:outline-none ${className}`}
-        aria-label="tscaps — home"
+        aria-label="ThitCaps — home"
       >
         {content}
       </a>
@@ -69,7 +69,7 @@ export function Wordmark({ href, onClick, size = 'md', working = false, classNam
   }
 
   return (
-    <span className={`${BASE} ${sizeClass} ${className}`} aria-label="tscaps">
+    <span className={`${BASE} ${sizeClass} ${className}`} aria-label="ThitCaps">
       {content}
     </span>
   );
