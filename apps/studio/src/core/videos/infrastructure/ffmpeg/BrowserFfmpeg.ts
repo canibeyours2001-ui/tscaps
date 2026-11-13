@@ -1,7 +1,7 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { toBlobURL } from '@ffmpeg/util';
 
-const CORE_CDN = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
+const CORE_CDN = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm';
 export const MAX_BROWSER_VIDEO_BYTES = 90 * 1024 * 1024;
 
 /** Lazy, local-only FFmpeg.wasm. No SharedArrayBuffer or media uploads. */
