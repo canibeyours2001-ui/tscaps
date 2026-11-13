@@ -17,8 +17,10 @@ import {
 import { AdvancedSection } from '@ui/pages/editor/features/preprocessing/components/AdvancedSection';
 import { SubtitleFileField } from '@ui/pages/editor/features/preprocessing/components/SubtitleFileField';
 import type { SubtitleFile } from '@core/transcription/domain/SubtitleFile';
+import { GroqSettings } from '@ui/pages/editor/features/preprocessing/components/GroqSettings';
+import { readGroqPreferences } from '@core/transcription/infrastructure/GroqPreferences';
 
-const DEFAULT_DESCRIPTION = 'Pick a language. Transcription runs in your browser.';
+const DEFAULT_DESCRIPTION = 'Pick a language and transcription provider. Your settings stay in this browser.';
 const SUBTITLE_FILE_DESCRIPTION = 'Your captions come from the file. Nothing is transcribed.';
 
 // Far above any subtitle file; what it stops is a video picked by mistake
@@ -118,6 +120,8 @@ export function StartDialog({
 }: StartDialogProps) {
   const [language, setLanguage] = useState<string>(allowAutoDetect ? AUTO_DETECT_LANGUAGE_VALUE : '');
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [provider, setProvider] = useState(readGroqPreferences().provider);
+  const [groqKeyError, setGroqKeyError] = useState('');
   const [languageError, setLanguageError] = useState<string | null>(null);
   const [subtitleFile, setSubtitleFile] = useState<SubtitleFile | null>(null);
   const [subtitleFileError, setSubtitleFileError] = useState<string | null>(null);
@@ -151,6 +155,11 @@ export function StartDialog({
     if (fromSubtitleFile) {
       return preprocessVideo.execute({ transcriber: {}, multipleSpeakers: false, subtitleFile });
     }
+    if (readGroqPreferences().provider === 'groq' && !readGroqPreferences().apiKey.trim()) {
+      setGroqKeyError('Add your own Groq API key to transcribe.');
+      return;
+    }
+    setGroqKeyError('');
     if (!allowAutoDetect && language === '') {
       setLanguageError('Please pick a language.');
       document.getElementById('td-language')?.focus();
@@ -204,6 +213,10 @@ export function StartDialog({
             errorMessage={languageError ?? undefined}
           />
 
+          {inBrowserTranscription && (
+            <GroqSettings onProviderChange={(value) => { setProvider(value); setGroqKeyError(''); }} />
+          )}
+          {groqKeyError && <p role="alert" className="text-xs text-danger m-0">{groqKeyError}</p>}
           {extraFields}
         </>
       )}
@@ -212,7 +225,7 @@ export function StartDialog({
         <p className="text-xs text-danger m-0" role="alert">{subtitleFileError}</p>
       )}
 
-      {inBrowserTranscription && !fromSubtitleFile && (
+      {inBrowserTranscription && !fromSubtitleFile && provider === 'local' && (
         <AdvancedSection
           open={advancedOpen}
           onToggle={() => setAdvancedOpen((v) => !v)}
@@ -221,7 +234,7 @@ export function StartDialog({
         />
       )}
 
-      {inBrowserTranscription && !fromSubtitleFile && isMobileDevice && (
+      {inBrowserTranscription && !fromSubtitleFile && isMobileDevice && provider === 'local' && (
         <p className="text-2xs text-fg-faint m-0 leading-snug">
           In-browser transcription runs on your device — on mobile it can be slow or fail.
         </p>
