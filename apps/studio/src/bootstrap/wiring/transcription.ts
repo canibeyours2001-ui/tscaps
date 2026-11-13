@@ -4,6 +4,8 @@ import type { AudioDecoder } from '@tscaps/engine';
 import { WHISPER_SAMPLE_RATE } from '@tscaps/engine';
 import type { ConfigurableTranscriber } from '@core/transcription/domain/ConfigurableTranscriber';
 import { WorkerTranscriber } from '@core/transcription/infrastructure/WorkerTranscriber';
+import { GroqTranscriber } from '@core/transcription/infrastructure/GroqTranscriber';
+import { SwitchableTranscriber } from '@core/transcription/infrastructure/SwitchableTranscriber';
 import { WordOverlapClamper } from '@core/transcription/services/WordOverlapClamper';
 import { TranscribeAction } from '@core/transcription/actions/TranscribeAction';
 import { UpdateTranscribePreferenceAction } from '@core/transcription/actions/UpdateTranscribePreferenceAction';
@@ -46,7 +48,10 @@ export type TranscriptionModule = ReturnType<typeof bootTranscription>;
  * preprocessing, so the broader-scoped store lives there.
  */
 export function bootTranscription(deps: TranscriptionDependencies) {
-  const transcriber = deps.transcriber ?? buildLocalTranscriber(deps);
+  const transcriber = deps.transcriber ?? new SwitchableTranscriber(
+    buildLocalTranscriber(deps),
+    new GroqTranscriber(deps.audioDecoder, deps.progressStore),
+  );
 
   const untranscribedRegionsStore = new UntranscribedRegionsStore();
   const skippedCueBlocksStore = new SkippedCueBlocksStore();
