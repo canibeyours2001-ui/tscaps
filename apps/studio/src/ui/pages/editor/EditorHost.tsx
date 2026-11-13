@@ -329,7 +329,30 @@ export function EditorHost({
     (async () => {
       try {
         previewSurface.selectVariantForSource(preview.kind === 'proxy');
-        await previewSurface.load(preview.file);
+        try {
+          await previewSurface.load(preview.file);
+        } catch (primaryError) {
+          if (cancelled) return;
+          // Browser decoder support differs by format and platform. If the
+          // preferred renderer cannot open the file, attempt the other one
+          // before blocking the project. This does not change original video
+          // bytes, subtitle timing, or the exported source.
+          console.warn('[preview] preferred renderer failed; trying alternate renderer', primaryError);
+          try {
+            previewSurface.selectVariantForSource(preview.kind !== 'proxy');
+            await previewSurface.load(preview.file);
+            if (cancelled) return;
+            console.info('[preview] alternate renderer successfully loaded the video');
+          } catch (alternativeError) {
+            const causeText = (value: unknown): string =>
+              value instanceof Error ? value.message : String(value);
+            throw new Error(
+              `Preferred preview: ${causeText(primaryError)}. ` +
+              `Alternate preview: ${causeText(alternativeError)}.`,
+              { cause: alternativeError },
+            );
+          }
+        }
         if (cancelled) return;
         if (persistedSourceTimeSec > 0) previewSurface.seek(persistedSourceTimeSec);
       } catch (err) {
