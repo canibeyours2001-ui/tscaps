@@ -59,7 +59,9 @@ export function StartFlowHost({ onBack }: StartFlowHostProps) {
     : null;
   const rejection = ruledOut ?? (timedOut === 'probing' ? SOURCE_NEVER_ANSWERED : null);
 
-  if (!open) return null;
+  // Preview failures show a blocking project dialog with decoder details.
+  // Do not stack the Start dialog over that failure dialog.
+  if (!open || state.error?.name === 'PreviewLoadFailedError') return null;
 
   const handleCancel = () => {
     videos.actions.clear.execute();
