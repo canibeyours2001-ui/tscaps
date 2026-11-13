@@ -39,7 +39,10 @@ export async function onRequestPost({ request }: { request: Request }): Promise<
   }
 
   const upstreamBody = new FormData();
-  upstreamBody.append('file', audio, 'speech.wav');
+  // Keep audio container and extension consistent; never forward the video itself.
+  const format = /\.(flac|wav|mp3)$/i.exec(audio.name)?.[1]?.toLowerCase();
+  if (!format) return fail(400, 'Only extracted WAV, FLAC or MP3 audio is accepted.');
+  upstreamBody.append('file', audio, 'speech.' + format);
   upstreamBody.append('model', model);
   upstreamBody.append('response_format', 'verbose_json');
   upstreamBody.append('timestamp_granularities[]', 'word');

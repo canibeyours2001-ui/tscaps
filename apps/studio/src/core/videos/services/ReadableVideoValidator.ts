@@ -9,7 +9,9 @@ import type { VideoValidator } from '@core/videos/domain/VideoValidator';
  */
 export class ReadableVideoValidator implements VideoValidator {
   validate(candidate: VideoCandidate): Promise<VideoValidationResult> {
-    if (candidate.durationSeconds > 0) return Promise.resolve({ state: 'accepted' });
+    // Only refuse bytes the browser explicitly cannot read. Unknown duration
+    // often means an unsupported codec/container, which FFmpeg.wasm can rescue.
+    if (candidate.isSourceReadable !== false) return Promise.resolve({ state: 'accepted' });
     return Promise.resolve({
       state: 'rejected',
       details: { type: 'unreadable', reason: this.reasonFor(candidate) },

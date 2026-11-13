@@ -36,6 +36,7 @@ import { VideoConversionTelemetryReporter } from '@core/preprocessing/services/V
 import { VideoConversionAvailability } from '@core/videos/services/VideoConversionAvailability';
 import { VideoConversionMemoryRisk } from '@core/videos/services/VideoConversionMemoryRisk';
 import { SoftwareHevcVideoConverter } from '@core/videos/infrastructure/mediabunny/SoftwareHevcVideoConverter';
+import { AdaptiveVideoConverter } from '@core/videos/infrastructure/ffmpeg/AdaptiveVideoConverter';
 import { ConvertedOriginalCodecPolicy } from '@core/videos/infrastructure/mediabunny/ConvertedOriginalCodecPolicy';
 import { HevcJsSoftwareHevcDecoder } from '@core/videos/infrastructure/hevcjs/HevcJsSoftwareHevcDecoder';
 import type { ProxyTiming } from '@core/preprocessing/domain/ProxyTiming';
@@ -166,11 +167,13 @@ export function bootPreprocessing(deps: PreprocessingDependencies) {
     // Firefox keeps every decoded frame until a conversion ends, so a
     // long video can take several GB there; the offer says so.
     new VideoConversionMemoryRisk(deps.userAgentInspector.getBrowser() === 'firefox'),
-    new SoftwareHevcVideoConverter(
-      new HevcJsSoftwareHevcDecoder(),
-      deps.transcodeCoordinator,
-      new ConvertedOriginalCodecPolicy(new DefaultCodecPolicy()),
-      new DefaultEncodedFileOutputStrategyFactory(deps.workerErrorMonitor, 'converted-original-'),
+    new AdaptiveVideoConverter(
+      new SoftwareHevcVideoConverter(
+        new HevcJsSoftwareHevcDecoder(),
+        deps.transcodeCoordinator,
+        new ConvertedOriginalCodecPolicy(new DefaultCodecPolicy()),
+        new DefaultEncodedFileOutputStrategyFactory(deps.workerErrorMonitor, 'converted-original-'),
+      ),
     ),
     conversionOfferCoordinator,
     deps.progressStore,

@@ -10,6 +10,8 @@ import type { ExportStore } from '@core/export/store/ExportStore';
 import type { ExportFeedbackController } from '@presentation/export/controllers/ExportFeedbackController';
 import { VideoController } from '@presentation/editor/controllers/VideoController';
 import { usePreview } from '@ui/_shared/contexts/modules/PreviewContext';
+import { useVideos } from '@ui/_shared/contexts/modules/VideosContext';
+import { FfmpegWasmVideoConverter } from '@core/videos/infrastructure/ffmpeg/FfmpegWasmVideoConverter';
 import { SubtitleOverlayController } from '@presentation/editor/controllers/SubtitleOverlayController';
 import { OverlayManipulationController } from '@presentation/editor/controllers/OverlayManipulationController';
 import { OverlaySelectionController } from '@presentation/editor/controllers/OverlaySelectionController';
@@ -289,6 +291,9 @@ export function EditorHost({
 
   const cutAwareDocumentBuilder = cuts.services.cutAwareDocumentBuilder;
   const previewSurface = preview.surface;
+  const videos = useVideos();
+  const [automaticConversion, setAutomaticConversion] = useState<number | null>(null);
+  const attemptedAutoConversion = useRef(new WeakSet<Blob>());
   const [previewReady, setPreviewReady] = useState<boolean>(() => previewSurface.snapshot().isReady);
 
   useEffect(() => () => previewSurface.stop(), [previewSurface]);
@@ -357,12 +362,47 @@ export function EditorHost({
         if (persistedSourceTimeSec > 0) previewSurface.seek(persistedSourceTimeSec);
       } catch (err) {
         if (cancelled) return;
+        const original = store.snapshot().video.file;
+        // Once both canvas/WebCodecs and native HTMLVideoElement fail, try a
+        // browser-only FFmpeg fallback before blocking this project.  The
+        // original project/captions are preserved until conversion succeeds.
+        if (original && !attemptedAutoConversion.current.has(original) &&
+            !original.name.endsWith('-thitcaps.mp4')) {
+          attemptedAutoConversion.current.add(original);
+          try {
+            setAutomaticConversion(0);
+            const converted = await new FfmpegWasmVideoConverter().convert(original, (n) => {
+              if (!cancelled) setAutomaticConversion(n);
+            });
+            if (cancelled) return;
+            await videos.actions.replaceOriginal.execute(converted);
+            // Replacement updates the cached source. A failed proxy must also
+            // be replaced explicitly, otherwise the editor retries that proxy.
+            if (store.snapshot().video.file === converted) {
+              store.patchVideo({
+                preview: { kind: 'original', file: converted, reason: 'converted-source' },
+              });
+            }
+            setAutomaticConversion(null);
+            return;
+          } catch (conversionError) {
+            if (cancelled) return;
+            setAutomaticConversion(null);
+            console.error('[ThitCaps] automatic local conversion failed', conversionError);
+            const details = conversionError instanceof Error ? conversionError.message : String(conversionError);
+            const cause = err instanceof Error ? err.message : String(err);
+            store.patch({ error: new PreviewLoadFailedError({
+              cause: new Error('Video preview failed: ' + cause + '. Automatic conversion failed: ' + details),
+            }) });
+            return;
+          }
+        }
         console.error('Failed to load video into preview surface', err);
         store.patch({ error: new PreviewLoadFailedError({ cause: err }) });
       }
     })();
     return () => { cancelled = true; };
-  }, [state.video.preview, previewSurface, store]);
+  }, [state.video.preview, previewSurface, store, videos.actions.replaceOriginal]);
 
   const needsLiveStream = useMemo(
     () => state.sheets.some((s) => s.template.rendering.videoFrame.previewMode === 'live'),
@@ -531,7 +571,22 @@ export function EditorHost({
       </PlaybackProvider>
       {!previewReady && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface-0">
-          <ProjectLoadingIndicator downloadStatus={originalVideoDownload} proxyDownloadStatus={proxyDownload} />
+          {automaticConversion === null
+            ? <ProjectLoadingIndicator downloadStatus={originalVideoDownload} proxyDownloadStatus={proxyDownload} />
+            : (
+              <div className="flex flex-col gap-4 max-w-md p-6 w-full text-center text-fg-primary">
+                <h2 className="text-xl font-semibold">Making your video compatible</h2>
+                <p className="text-sm text-fg-secondary">
+                  ThitCaps is converting the video locally in your browser. Nothing is uploaded.
+                  This may take a while for large videos. Keep this tab open.
+                </p>
+                <div className="w-full h-2 rounded bg-surface-3 overflow-hidden">
+                  <div className="h-full bg-accent transition-all"
+                    style={{ width: Math.max(2, automaticConversion * 100) + '%' }} />
+                </div>
+                <p className="text-sm text-fg-muted">{Math.round(automaticConversion * 100)}%</p>
+              </div>
+            )}
         </div>
       )}
       {state.error?.name === 'PreviewLoadFailedError' && (

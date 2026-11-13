@@ -1,4 +1,5 @@
 import { UnsupportedVideoCodecError } from '@core/videos/domain/errors/UnsupportedVideoCodecError';
+import { VideoTrackMissingError } from '@core/videos/domain/errors/VideoTrackMissingError';
 
 /**
  * Whether a source this browser refused may be offered the in-browser
@@ -7,10 +8,11 @@ import { UnsupportedVideoCodecError } from '@core/videos/domain/errors/Unsupport
  */
 export class VideoConversionAvailability {
 
-  private static readonly CONVERTIBLE_CODEC = 'hevc';
-
-  canConvert(refusal: unknown): refusal is UnsupportedVideoCodecError {
-    return refusal instanceof UnsupportedVideoCodecError
-      && refusal.codec === VideoConversionAvailability.CONVERTIBLE_CODEC;
+  canConvert(refusal: unknown): boolean {
+    // Even a container that Mediabunny cannot parse may be readable by
+    // FFmpeg.wasm. Attempt a safe, bounded local conversion before refusing.
+    return refusal instanceof UnsupportedVideoCodecError ||
+      refusal instanceof VideoTrackMissingError ||
+      refusal instanceof Error;
   }
 }

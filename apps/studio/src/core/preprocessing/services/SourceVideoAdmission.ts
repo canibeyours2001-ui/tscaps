@@ -11,6 +11,8 @@ import type { VideoSourceMetadata } from '@core/videos/domain/VideoSourceMetadat
 import { VideoConversionFailedError } from '@core/videos/domain/errors/VideoConversionFailedError';
 import type { VideoConversionAvailability } from '@core/videos/services/VideoConversionAvailability';
 import type { VideoConversionMemoryRisk } from '@core/videos/services/VideoConversionMemoryRisk';
+import { MAX_BROWSER_VIDEO_BYTES } from '@core/videos/infrastructure/ffmpeg/BrowserFfmpeg';
+import { UnsupportedVideoCodecError } from '@core/videos/domain/errors/UnsupportedVideoCodecError';
 
 /** The file a preprocessing run works from. */
 export interface AdmittedSource {
@@ -49,13 +51,20 @@ export class SourceVideoAdmission {
       return { file: source, converted: false };
     } catch (refusal) {
       if (!this.conversionAvailability.canConvert(refusal)) throw refusal;
+      if (source.size > MAX_BROWSER_VIDEO_BYTES) {
+        throw new Error('This video needs conversion but is over the 90 MB browser safety limit. ' +
+          'Please export a smaller H.264 MP4.');
+      }
       const attempt: VideoConversionAttempt = {
         source,
-        codec: refusal.codec,
+        codec: refusal instanceof UnsupportedVideoCodecError
+          ? refusal.codec : metadata?.videoCodec ?? 'unknown',
         metadata,
         offer: await this.offerFor(source),
       };
-      if (!(await this.askReader(attempt))) throw refusal;
+      // The visitor already pressed Start. Conversion runs on this device;
+      // there is no upload and no reason to block on a second confirmation.
+      this.telemetryReporter.reportAccepted(attempt, 0);
       return { file: await this.convert(attempt), converted: true };
     }
   }

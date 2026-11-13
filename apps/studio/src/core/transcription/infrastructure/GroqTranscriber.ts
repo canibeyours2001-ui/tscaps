@@ -6,6 +6,7 @@ import type { ConfigurableTranscriber } from '@core/transcription/domain/Configu
 import type { PreprocessingProgressPhase } from '@core/preprocessing/domain/PreprocessingProgressStatus';
 import type { PreprocessingProgressStore } from '@core/preprocessing/store/PreprocessingProgressStore';
 import { readGroqPreferences } from '@core/transcription/infrastructure/GroqPreferences';
+import { extractGroqAudio } from '@core/transcription/infrastructure/FfmpegGroqAudio';
 
 interface GroqWord { word: string; start: number; end: number }
 const SAMPLE_RATE = 16000;
@@ -31,16 +32,39 @@ export class GroqTranscriber implements ConfigurableTranscriber {
     if (!key) throw new Error('Add your own Groq API key before starting transcription.');
 
     this.progress.setAudioExtractProgress(0);
-    const pcm = await this.decoder.decode(audio, SAMPLE_RATE, (progress) =>
-      this.progress.setAudioExtractProgress(progress),
-    );
-    const wav = encodeWav(pcm);
-    if (wav.size > MAX_WAV_BYTES) {
-      throw new Error('Audio is too long for this Groq upload (24 MB WAV limit). Try a shorter video or local Whisper.');
+    let extracted: Blob;
+    let fileName = 'speech.wav';
+    try {
+      const pcm = await this.decoder.decode(audio, SAMPLE_RATE, (progress) =>
+        this.progress.setAudioExtractProgress(progress),
+      );
+      if (pcm.length === 0) throw new Error('No audio samples could be decoded.');
+      const wav = encodeWav(pcm);
+      if (wav.size > MAX_WAV_BYTES) {
+        extracted = await extractGroqAudio(audio);
+        fileName = 'speech.flac';
+      } else {
+        extracted = wav;
+      }
+    } catch (normalError) {
+      console.warn('[ThitCaps] standard audio decoder unavailable; trying local FFmpeg.wasm', normalError);
+      try {
+        extracted = await extractGroqAudio(audio);
+        fileName = 'speech.flac';
+      } catch (fallbackError) {
+        throw new AggregateError(
+          [normalError, fallbackError],
+          'Audio extraction failed using both the normal decoder and FFmpeg.wasm. ' +
+            (fallbackError instanceof Error ? fallbackError.message : String(fallbackError)),
+        );
+      }
+    }
+    if (extracted.size > MAX_WAV_BYTES) {
+      throw new Error('Extracted audio exceeds Groq\'s 24 MB upload safety limit.');
     }
     this.progress.enterInferringPhase();
     const form = new FormData();
-    form.append('file', wav, 'speech.wav');
+    form.append('file', extracted, fileName);
     form.append('model', settings.model);
     if (options?.language) form.append('language', options.language);
 
