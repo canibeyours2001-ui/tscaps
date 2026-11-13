@@ -3,7 +3,6 @@ import type { AppError } from '@core/errors/domain/AppError';
 import type { FailureReason } from '@core/errors/domain/FailureReason';
 import { useUtils } from '@ui/_shared/contexts/modules/UtilsContext';
 import { useErrors } from '@ui/_shared/contexts/modules/ErrorsContext';
-import { SUPPORT_EMAIL } from '@ui/_shared/supportEmail';
 import { VideoDurationFormatter } from '@presentation/_shared/services/VideoDurationFormatter';
 import type { UnsupportedAudioCodecError } from '@core/videos/domain/errors/UnsupportedAudioCodecError';
 import type { UnsupportedVideoCodecError } from '@core/videos/domain/errors/UnsupportedVideoCodecError';
@@ -303,7 +302,7 @@ export function AppErrorMessage({ error, isMobile = false }: AppErrorMessageProp
     case 'SubtitleFileReadFailedError':      return <SubtitleFileReadFailedBody />;
     case 'BehindActorMeasurementFailedError': return <BehindActorMeasurementFailedBody />;
     case 'PreviewProxyGenerationFailedError': return <PreviewProxyGenerationFailedBody reason={reason} />;
-    case 'PreviewLoadFailedError':           return <PreviewLoadFailedBody isMobile={isMobile} />;
+    case 'PreviewLoadFailedError':           return <PreviewLoadFailedBody error={error} isMobile={isMobile} />;
     case 'UnsupportedVideoCodecError':       return <UnsupportedVideoCodecBody error={error as UnsupportedVideoCodecError} isMobile={isMobile} />;
     case 'VideoConversionFailedError':       return <VideoConversionFailedBody isMobile={isMobile} />;
     case 'VideoTrackMissingError':           return <VideoTrackMissingBody />;
@@ -322,12 +321,23 @@ function PreviewProxyGenerationFailedBody({ reason }: { readonly reason: Failure
   return <p className="m-0">{describeProxyFailure(reason)}</p>;
 }
 
-function PreviewLoadFailedBody({ isMobile }: { isMobile: boolean }): ReactElement {
+function PreviewLoadFailedBody({
+  error,
+  isMobile,
+}: { error: AppError; isMobile: boolean }): ReactElement {
   const fallbackBullets = useEngineFallbackBullets(isMobile);
+  const cause = error.cause;
+  const reason = cause instanceof Error ? cause.message :
+    typeof cause === 'string' ? cause : null;
   return (
     <ErrorBody
-      lead="We couldn't load this video into the editor."
-      bullets={['Add the video again in a new project.', ...fallbackBullets]}
+      lead="ThitCaps couldn't decode this video's preview. Groq transcription has not started yet."
+      bullets={[
+        'Try Reload first. If this is a MOV, HEVC/H.265, ProRes or unusual export, convert it to MP4 with H.264 video and AAC audio, then add it again.',
+        'For a new video, use a short H.264 MP4 as a test. Video can play in QuickTime but still lack decoder support in your browser.',
+        ...fallbackBullets,
+      ]}
+      details={reason ? `Decoder error: ${reason.slice(0, 600)}` : 'Decoder error details unavailable.'}
     />
   );
 }
@@ -834,7 +844,7 @@ export function useEngineFallbackBullets(isMobile: boolean): string[] {
   const bullets: string[] = [];
   if (!isChromiumBased) {
     bullets.push(
-      'Open tscaps in a Chromium-based browser (Chrome, Edge, Brave). They have the broadest support for what tscaps needs.',
+      'Open ThitCaps in a Chromium-based browser (Chrome, Edge, Brave). They have the broadest support for what tscaps needs.',
     );
   }
   if (isMobile) bullets.push("If you're on mobile, try from a desktop browser.");
@@ -843,8 +853,8 @@ export function useEngineFallbackBullets(isMobile: boolean): string[] {
 
 /** Frames the support line for what the body was able to offer. */
 function inviteToSupport(kind: SupportKind, hasBullets: boolean): string {
-  if (kind === 'mistake') return 'If you think this is a mistake, email us at ';
-  return hasBullets ? 'Still stuck? Email us at ' : 'Email us at ';
+  if (kind === 'mistake') return 'If you think this is a bug, report it at ';
+  return hasBullets ? 'Still stuck? Report a bug at ' : 'Report a bug at ';
 }
 
 /** Announces the list that follows; `null` when there is no list to announce. */
@@ -888,7 +898,7 @@ function ErrorBody({
       {bullets.length === 1 && <p className="m-0">{bullets[0]}</p>}
       <p className="m-0">
         {inviteToSupport(support, bullets.length > 0)}
-        <SupportLink /> and we&apos;ll take a look.
+        <SupportLink />. Please include the error details above, not your API key.
       </p>
       {details && <p className="m-0 text-fg-faint text-xs">{details}</p>}
     </div>
@@ -897,8 +907,9 @@ function ErrorBody({
 
 function SupportLink(): ReactElement {
   return (
-    <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>
-      {SUPPORT_EMAIL}
+    <a className="underline" href="https://github.com/canibeyours2001-ui/tscaps/issues"
+      target="_blank" rel="noopener noreferrer">
+      ThitCaps GitHub issues
     </a>
   );
 }
