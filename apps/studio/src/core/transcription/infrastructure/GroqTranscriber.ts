@@ -106,7 +106,7 @@ function encodeWav(samples: Float32Array): Blob {
   write(36, 'data');
   view.setUint32(40, samples.length * 2, true);
   for (let i = 0; i < samples.length; i++) {
-    const n = Math.max(-1, Math.min(1, samples[i]));
+    const n = Math.max(-1, Math.min(1, samples[i] ?? 0));
     view.setInt16(44 + i * 2, n < 0 ? n * 32768 : n * 32767, true);
   }
   return new Blob([bytes], { type: 'audio/wav' });
